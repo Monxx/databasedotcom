@@ -5,6 +5,11 @@ module Databasedotcom
       cattr_accessor :client
       extend ActiveModel::Naming if defined?(ActiveModel::Naming)
 
+      class << self
+        attr_accessor :select_field_list
+        attr_accessor :handler
+      end
+
       def ==(other)
         return false unless other.is_a?(self.class)
         self.Id == other.Id
@@ -330,6 +335,23 @@ module Databasedotcom
         end
       end
 
+      # Sets a list of fields to fetch
+      # returns a temporary instance of the sObject type
+      def self.select(field_list)
+        temp_class_instance = with_handler 'selected_fields'
+        temp_class_instance.select_field_list = field_list
+        temp_class_instance
+      end
+
+      # Queries with a where expression, and it can use the field list set by select
+      def self.where(where_expr)
+        if self.handler == 'selected_fields'
+          self.client.query("SELECT #{self.select_field_list} FROM #{self.sobject_name} WHERE #{where_expr}")
+        else
+          self.query(where_expr)
+        end
+      end
+
       private
 
       def self.register_field( name, field )
@@ -370,6 +392,13 @@ module Databasedotcom
           arr << "#{av[0]} = #{value_str}"
           arr
         end.join(" AND ")
+      end
+
+      def self.with_handler(h)
+        new_class_instance = self.clone
+        new_class_instance.materialize(self.sobject_name)
+        new_class_instance.handler = h
+        new_class_instance
       end
     end
   end

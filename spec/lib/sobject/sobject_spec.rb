@@ -794,5 +794,31 @@ describe Databasedotcom::Sobject::Sobject do
         reloaded_obj.should == obj
       end
     end
+
+    describe ".select" do
+      it "sets the select field list variable" do
+        response = JSON.parse(File.read(File.join(File.dirname(__FILE__), "../../fixtures/sobject/sobject_describe_success_response.json")))
+        @client.should_receive(:describe_sobject).with("TestClass").and_return(response)
+        TestClass.select("Id,Name").select_field_list.should == "Id,Name"
+      end
+    end
+
+    describe ".where" do
+      context "when the select field list is not set" do
+        it "constructs and submits an SOQL query with all the fields" do
+          @client.should_receive(:query).with("SELECT #{@field_names.join(',')} FROM TestClass WHERE Name = 'foo'").and_return("bar")
+          TestClass.where("Name = 'foo'").should == "bar"
+        end
+      end
+
+      context "when the select field list is set" do
+        it "constructs and submits an SOQL query with just the specified fields" do
+          response = JSON.parse(File.read(File.join(File.dirname(__FILE__), "../../fixtures/sobject/sobject_describe_success_response.json")))
+          @client.should_receive(:describe_sobject).with("TestClass").and_return(response)
+          @client.should_receive(:query).with("SELECT Id, Name FROM TestClass WHERE Name = 'foo'").and_return("bar")
+          TestClass.select("Id, Name").where("Name = 'foo'").should == "bar"
+        end
+      end
+    end
   end
 end
